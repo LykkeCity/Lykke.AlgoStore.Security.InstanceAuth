@@ -1,0 +1,1 @@
+# Lykke.AlgoStore.Security.InstanceAuth
