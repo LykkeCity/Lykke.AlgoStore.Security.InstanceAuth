@@ -39,6 +39,10 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
             _instanceRepository = instanceRepository ?? throw new ArgumentNullException(nameof(instanceRepository));
         }
 
+        /// <summary>
+        /// Handles instance authentication based on the bearer token
+        /// </summary>
+        /// <returns>Authentication result</returns>
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
             var token = TokenUtils.GetToken(_httpContextAccessor.HttpContext);
@@ -46,6 +50,7 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
             if (token == null)
                 return AuthenticateResult.NoResult();
 
+            // Check if the token already exists in the cache
             var cachedData = _memoryCache.Get($"{KEY_PREFIX}{token}");
 
             if (cachedData != null)

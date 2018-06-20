@@ -28,6 +28,8 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
             var updateIp = CreateOrUpdateKey($"{KEY_PREFIX}{ip}");
             var updateToken = token == null ? true : CreateOrUpdateKey($"{KEY_PREFIX}{token}");
 
+            // If either of the two should be rate limited, return status code 429 (Too Many Requests)
+            // with Retry-After header indicating the cooldown time
             if (!updateIp || !updateToken)
             {
                 context.Response.StatusCode = 429;

@@ -4,6 +4,13 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
 {
     internal static class TokenUtils
     {
+        /// <summary>
+        /// Retrieves the authentication token from a request
+        /// </summary>
+        /// <param name="context">The context to retrieve the token from</param>
+        /// <returns>
+        /// The token if the request contains a valid authorization header, null otherwise
+        /// </returns>
         public static string GetToken(HttpContext context)
         {
             var header = context.Request.Headers["Authorization"].ToString();

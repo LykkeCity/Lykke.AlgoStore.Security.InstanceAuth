@@ -7,6 +7,11 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
     {
         private const string AUTH_SCHEME = "Bearer";
 
+        /// <summary>
+        /// Adds algo instance authentication through bearer token
+        /// </summary>
+        /// <param name="services">The service collection to register the authentication in</param>
+        /// <param name="cacheSettings">Instance data cache settings</param>
         public static void AddInstanceAuthentication(this IServiceCollection services, InstanceCacheSettings cacheSettings)
         {
             if (services == null)
