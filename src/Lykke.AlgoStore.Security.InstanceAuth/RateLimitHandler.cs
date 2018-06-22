@@ -1,12 +1,12 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using System;
-using System.IO;
+using System.Net;
 using System.Runtime.Caching;
-using System.Threading.Tasks;
 
 namespace Lykke.AlgoStore.Security.InstanceAuth
 {
-    internal static class RateLimitMiddleware
+    internal class RateLimitHandler : IActionFilter
     {
         private class CachedRateLimit
         {
@@ -17,13 +17,21 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
         private const string KEY_PREFIX = "instanceratelimit_";
 
         private static readonly MemoryCache _memoryCache = MemoryCache.Default;
+        private readonly RateLimitSettings _settings;
 
-        public static int MaxRequestsPerInterval { get; set; } = 3;
-
-        public static async Task RateLimit(HttpContext context, Func<Task> next)
+        public RateLimitHandler(RateLimitSettings settings)
         {
-            var token = TokenUtils.GetToken(context);
-            var ip = context.Connection.RemoteIpAddress.ToString();
+            _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        }
+
+        public void OnActionExecuted(ActionExecutedContext context)
+        {
+        }
+
+        public void OnActionExecuting(ActionExecutingContext context)
+        {
+            var token = TokenUtils.GetToken(context.HttpContext);
+            var ip = context.HttpContext.Connection.RemoteIpAddress.ToString();
 
             var updateIp = CreateOrUpdateKey($"{KEY_PREFIX}{ip}");
             var updateToken = token == null ? true : CreateOrUpdateKey($"{KEY_PREFIX}{token}");
@@ -32,19 +40,14 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
             // with Retry-After header indicating the cooldown time
             if (!updateIp || !updateToken)
             {
-                context.Response.StatusCode = 429;
-                context.Response.Headers.Add("Retry-After", "60");
-
-                context.Response.Body = new MemoryStream();
-                return;
+                context.HttpContext.Response.Headers.Add("Retry-After", "60");
+                context.Result = new StatusCodeResult((int)HttpStatusCode.TooManyRequests);
             }
-
-            await next();
         }
 
-        private static bool CreateOrUpdateKey(string key)
+        private bool CreateOrUpdateKey(string key)
         {
-            if(!_memoryCache.Contains(key))
+            if (!_memoryCache.Contains(key))
             {
                 _memoryCache.Add(key, new CachedRateLimit
                 {
@@ -60,7 +63,7 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
 
             _memoryCache.Set(key, item, item.Expiration);
 
-            return item.Requests <= MaxRequestsPerInterval;
+            return item.Requests <= _settings.MaximumRequestsPerMinute;
         }
     }
 }
