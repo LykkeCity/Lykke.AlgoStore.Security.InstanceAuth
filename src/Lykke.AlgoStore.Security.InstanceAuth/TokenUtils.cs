@@ -23,7 +23,7 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
             if (values.Length != 2)
                 return null;
 
-            if (values[0] != "Bearer")
+            if (values[0] != InstanceAuthConstants.AUTH_SCHEME)
                 return null;
 
             return values[1];

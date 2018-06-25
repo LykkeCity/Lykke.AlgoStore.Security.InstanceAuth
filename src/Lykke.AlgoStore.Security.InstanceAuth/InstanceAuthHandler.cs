@@ -15,28 +15,39 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
     {
         private const string KEY_PREFIX = "instanceauth_";
 
-        private readonly IOptionsMonitor<InstanceAuthOptions> _options;
+        private static readonly MemoryCache _memoryCache = MemoryCache.Default;
+
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IAlgoClientInstanceRepository _instanceRepository;
-        private readonly MemoryCache _memoryCache = MemoryCache.Default;
-
-        private readonly CacheItemPolicy _defaultCachePolicy = new CacheItemPolicy
-        {
-            SlidingExpiration = TimeSpan.FromMinutes(2)
-        };
+        private readonly CacheItemPolicy _defaultCachePolicy;
 
         public InstanceAuthHandler(
-            IOptionsMonitor<InstanceAuthOptions> options, 
+            IOptionsMonitor<InstanceAuthOptions> optionsMonitor, 
             ILoggerFactory logger, 
             UrlEncoder encoder, 
             ISystemClock clock,
             IHttpContextAccessor httpContextAccessor,
-            IAlgoClientInstanceRepository instanceRepository) 
-            : base(options, logger, encoder, clock)
+            IAlgoClientInstanceRepository instanceRepository,
+            IConfigureOptions<InstanceAuthOptions> configureOptions) 
+            : base(optionsMonitor, logger, encoder, clock)
         {
-            _options = options ?? throw new ArgumentNullException(nameof(options));
+            if (optionsMonitor == null)
+                throw new ArgumentNullException(nameof(optionsMonitor));
+            if (configureOptions == null)
+                throw new ArgumentNullException(nameof(configureOptions));
+
             _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
             _instanceRepository = instanceRepository ?? throw new ArgumentNullException(nameof(instanceRepository));
+
+            var authOptions = optionsMonitor.CurrentValue;
+
+            var configureNamedOptions = (IConfigureNamedOptions<InstanceAuthOptions>)configureOptions;
+            configureNamedOptions.Configure(InstanceAuthConstants.AUTH_SCHEME, authOptions);
+
+            _defaultCachePolicy = new CacheItemPolicy
+            {
+                SlidingExpiration = TimeSpan.FromSeconds(authOptions.CacheSettings.CacheExpiryTimeInSeconds)
+            };
         }
 
         /// <summary>
@@ -54,7 +65,7 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
             var cachedData = _memoryCache.Get($"{KEY_PREFIX}{token}");
 
             if (cachedData != null)
-                return AuthenticateResult.Success((AuthenticationTicket)cachedData);
+                return AuthenticateResult.Success(MakeTicket((InstanceIdentity)cachedData));
 
             var data = await _instanceRepository.GetAlgoInstanceDataByAuthTokenAsync(token);
 
@@ -64,12 +75,27 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
             if (!InstanceValidator.Validate(data))
                 return AuthenticateResult.NoResult();
 
-            var principal = new ClaimsPrincipal(new InstanceIdentity(token));
-            var ticket = new AuthenticationTicket(principal, "Bearer");
+            var identity = new InstanceIdentity(token, data);
+            
+            _memoryCache.Add(new CacheItem($"{KEY_PREFIX}{token}", identity), _defaultCachePolicy);
 
-            _memoryCache.Add(new CacheItem($"{KEY_PREFIX}{token}", ticket), _defaultCachePolicy);
+            return AuthenticateResult.Success(MakeTicket(identity));
+        }
 
-            return AuthenticateResult.Success(ticket);
+        private AuthenticationTicket MakeTicket(InstanceIdentity identity)
+        {
+            var principal = new ClaimsPrincipal(identity);
+            return new AuthenticationTicket(principal, InstanceAuthConstants.AUTH_SCHEME);
+        }
+
+        internal static InstanceIdentity GetCachedIdentity(string token)
+        {
+            if (token == null)
+                return null;
+
+            var cachedData = _memoryCache.Get($"{KEY_PREFIX}{token}");
+
+            return cachedData as InstanceIdentity;
         }
     }
 }
