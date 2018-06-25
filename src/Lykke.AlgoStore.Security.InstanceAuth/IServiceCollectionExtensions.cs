@@ -5,8 +5,6 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
 {
     public static class IServiceCollectionExtensions
     {
-        private const string AUTH_SCHEME = "Bearer";
-
         /// <summary>
         /// Adds algo instance authentication through bearer token
         /// </summary>
@@ -21,9 +19,11 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
 
             services.AddAuthentication(options =>
             {
-                options.DefaultAuthenticateScheme = AUTH_SCHEME;
-                options.DefaultChallengeScheme = AUTH_SCHEME;
-            }).AddScheme<InstanceAuthOptions, InstanceAuthHandler>(AUTH_SCHEME, o => o.CacheSettings = cacheSettings);
+                options.DefaultAuthenticateScheme = InstanceAuthConstants.AUTH_SCHEME;
+                options.DefaultChallengeScheme = InstanceAuthConstants.AUTH_SCHEME;
+            }).AddScheme<InstanceAuthOptions, InstanceAuthHandler>(
+                InstanceAuthConstants.AUTH_SCHEME,
+                o => o.CacheSettings = cacheSettings);
         }
     }
 }

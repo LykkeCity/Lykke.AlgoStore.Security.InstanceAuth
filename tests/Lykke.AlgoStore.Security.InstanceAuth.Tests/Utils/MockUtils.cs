@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Primitives;
 using Moq;
 using NUnit.Framework;
@@ -10,6 +11,19 @@ namespace Lykke.AlgoStore.Security.InstanceAuth.Tests.Utils
 {
     internal static class MockUtils
     {
+        public static ActionExecutingContext Given_ActionContextMock(
+            HttpContext context)
+        {
+            return new ActionExecutingContext(
+                new Microsoft.AspNetCore.Mvc.ActionContext(
+                    context, 
+                    new Microsoft.AspNetCore.Routing.RouteData(),
+                    new Microsoft.AspNetCore.Mvc.Abstractions.ActionDescriptor()),
+                new List<IFilterMetadata>(),
+                new Dictionary<string, object>(),
+                null);
+        }
+
         public static Mock<HttpContext> Given_Verifiable_HttpContextMock(
             HttpRequest request,
             HttpResponse response,
@@ -65,17 +79,9 @@ namespace Lykke.AlgoStore.Security.InstanceAuth.Tests.Utils
         }
 
         public static Mock<HttpResponse> Given_Verifiable_HttpResponseMock(
-            int? expectedResult = null,
             List<string> expectedHeaders = null)
         {
             var mock = new Mock<HttpResponse>(MockBehavior.Strict);
-
-            if (expectedResult != null)
-            {
-                var value = expectedResult.Value;
-                mock.SetupSet(r => r.StatusCode = value)
-                    .Verifiable();
-            }
 
             if (expectedHeaders != null)
             {
@@ -91,9 +97,6 @@ namespace Lykke.AlgoStore.Security.InstanceAuth.Tests.Utils
                     .Returns(dictMock.Object)
                     .Verifiable();
             }
-
-            mock.SetupSet(r => r.Body = It.IsAny<Stream>())
-                .Verifiable();
 
             return mock;
         }

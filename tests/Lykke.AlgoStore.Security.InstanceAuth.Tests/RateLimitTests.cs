@@ -1,14 +1,9 @@
 ﻿using Lykke.AlgoStore.Security.InstanceAuth.Tests.Utils;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
-using Moq;
 using NUnit.Framework;
-using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net;
-using System.Threading.Tasks;
 
 namespace Lykke.AlgoStore.Security.InstanceAuth.Tests
 {
@@ -16,7 +11,7 @@ namespace Lykke.AlgoStore.Security.InstanceAuth.Tests
     public class RateLimitTests
     {
         [Test]
-        public async Task RateLimitMiddleware_LimitsByIp_WhenTooManyRequests()
+        public void RateLimitMiddleware_LimitsByIp_WhenTooManyRequests()
         {
             var ip = new IPAddress(new byte[] { 0, 0, 0, 0 });
 
@@ -26,23 +21,29 @@ namespace Lykke.AlgoStore.Security.InstanceAuth.Tests
                 ["Authorization"] = ""
             });
             var request = MockUtils.Given_Verifiable_HttpRequestMock(headerDictionary.Object);
-            var response = MockUtils.Given_Verifiable_HttpResponseMock(429, 
-                new List<string> { "Retry-After" });
+            var response = MockUtils.Given_Verifiable_HttpResponseMock(new List<string> { "Retry-After" });
             var context = MockUtils.Given_Verifiable_HttpContextMock(request.Object, response.Object, ip);
+            var actionContext = MockUtils.Given_ActionContextMock(context.Object);
 
-            RateLimitMiddleware.MaxRequestsPerInterval = 1;
+            var middleware = new RateLimitHandler(new RateLimitSettings
+            {
+                MaximumRequestsPerMinute = 1
+            });
 
-            await RateLimitMiddleware.RateLimit(context.Object, () => Task.CompletedTask);
-            await RateLimitMiddleware.RateLimit(context.Object, () => Task.CompletedTask);
+            middleware.OnActionExecuting(actionContext);
+            middleware.OnActionExecuting(actionContext);
 
             context.Verify();
             request.Verify();
             response.Verify();
             headerDictionary.Verify();
+
+            Assert.IsTrue(actionContext.Result is StatusCodeResult);
+            Assert.AreEqual(429, ((StatusCodeResult)actionContext.Result).StatusCode);
         }
 
         [Test]
-        public async Task RateLimitMiddleware_LimitsByToken_WhenTooManyRequests()
+        public void RateLimitMiddleware_LimitsByToken_WhenTooManyRequests()
         {
             var ip = new IPAddress(new byte[] { 0, 0, 0, 0 });
             var ip2 = new IPAddress(new byte[] { 0, 0, 0, 1 });
@@ -53,36 +54,25 @@ namespace Lykke.AlgoStore.Security.InstanceAuth.Tests
                 ["Authorization"] = "Bearer token"
             });
             var request = MockUtils.Given_Verifiable_HttpRequestMock(headerDictionary.Object);
-            var response = MockUtils.Given_Verifiable_HttpResponseMock(429, 
-                new List<string> { "Retry-After" });
+            var response = MockUtils.Given_Verifiable_HttpResponseMock(new List<string> { "Retry-After" });
             var context = MockUtils.Given_Verifiable_HttpContextMock(request.Object, response.Object, ip, ip2);
+            var actionContext = MockUtils.Given_ActionContextMock(context.Object);
 
-            RateLimitMiddleware.MaxRequestsPerInterval = 1;
+            var middleware = new RateLimitHandler(new RateLimitSettings
+            {
+                MaximumRequestsPerMinute = 1
+            });
 
-            await RateLimitMiddleware.RateLimit(context.Object, () => Task.CompletedTask);
-            await RateLimitMiddleware.RateLimit(context.Object, () => Task.CompletedTask);
+            middleware.OnActionExecuting(actionContext);
+            middleware.OnActionExecuting(actionContext);
 
             context.Verify();
             request.Verify();
             response.Verify();
             headerDictionary.Verify();
-        }
 
-        [Test]
-        public void UseRateLimiting_RegistersMiddlewareSuccessfully()
-        {
-            var applicationBuilderMock = new Mock<IApplicationBuilder>(MockBehavior.Strict);
-            applicationBuilderMock
-                .Setup(a => a.Use(It.IsAny<Func<RequestDelegate, RequestDelegate>>()))
-                .Returns(applicationBuilderMock.Object)
-                .Verifiable();
-
-            applicationBuilderMock.Object.UseRateLimiting(new RateLimitSettings
-            {
-                MaximumRequestsPerMinute = 1
-            });
-
-            applicationBuilderMock.Verify();
+            Assert.IsTrue(actionContext.Result is StatusCodeResult);
+            Assert.AreEqual(429, ((StatusCodeResult)actionContext.Result).StatusCode);
         }
     }
 }
