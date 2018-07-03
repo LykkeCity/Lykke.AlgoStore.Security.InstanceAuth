@@ -40,7 +40,9 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
             // with Retry-After header indicating the cooldown time
             if (!updateIp || !updateToken)
             {
-                context.HttpContext.Response.Headers.Add("Retry-After", "60");
+                var keyToUse = token == null ? $"{KEY_PREFIX}{ip}" : $"{KEY_PREFIX}{token}";
+
+                context.HttpContext.Response.Headers.Add("Retry-After", GetSecondsToExpiration(keyToUse).ToString());
                 context.Result = new StatusCodeResult((int)HttpStatusCode.TooManyRequests);
             }
         }
@@ -64,6 +66,17 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
             _memoryCache.Set(key, item, item.Expiration);
 
             return item.Requests <= _settings.MaximumRequestsPerMinute;
+        }
+
+        private int GetSecondsToExpiration(string key)
+        {
+            if (!_memoryCache.Contains(key))
+            {
+                return 0;
+            }
+
+            var item = (CachedRateLimit)_memoryCache.Get(key);
+            return Math.Max(0, (int)Math.Ceiling((item.Expiration - DateTimeOffset.UtcNow).TotalSeconds));
         }
     }
 }
