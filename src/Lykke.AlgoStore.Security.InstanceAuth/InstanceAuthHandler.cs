@@ -17,6 +17,7 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
 
         private static readonly MemoryCache _memoryCache = MemoryCache.Default;
 
+        private readonly IOptionsMonitor<InstanceAuthOptions> _optionsMonitor;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IAlgoClientInstanceRepository _instanceRepository;
         private readonly CacheItemPolicy _defaultCachePolicy;
@@ -31,11 +32,10 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
             IConfigureOptions<InstanceAuthOptions> configureOptions) 
             : base(optionsMonitor, logger, encoder, clock)
         {
-            if (optionsMonitor == null)
-                throw new ArgumentNullException(nameof(optionsMonitor));
             if (configureOptions == null)
                 throw new ArgumentNullException(nameof(configureOptions));
 
+            _optionsMonitor = optionsMonitor ?? throw new ArgumentNullException(nameof(optionsMonitor));
             _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
             _instanceRepository = instanceRepository ?? throw new ArgumentNullException(nameof(instanceRepository));
 
@@ -46,7 +46,7 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
 
             _defaultCachePolicy = new CacheItemPolicy
             {
-                SlidingExpiration = TimeSpan.FromSeconds(authOptions.CacheSettings.CacheExpiryTimeInSeconds)
+                SlidingExpiration = TimeSpan.FromSeconds(authOptions.AuthSettings.CacheExpiryTimeInSeconds)
             };
         }
 
@@ -72,7 +72,7 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
             if (data == null)
                 return AuthenticateResult.NoResult();
 
-            if (!InstanceValidator.Validate(data))
+            if (!InstanceValidator.Validate(data, !_optionsMonitor.CurrentValue.AuthSettings.AllowNonStartedInstances))
                 return AuthenticateResult.NoResult();
 
             var identity = new InstanceIdentity(token, data);

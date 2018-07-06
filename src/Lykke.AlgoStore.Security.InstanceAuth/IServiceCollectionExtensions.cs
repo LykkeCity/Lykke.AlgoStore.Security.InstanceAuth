@@ -10,7 +10,7 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
         /// </summary>
         /// <param name="services">The service collection to register the authentication in</param>
         /// <param name="cacheSettings">Instance data cache settings</param>
-        public static void AddInstanceAuthentication(this IServiceCollection services, InstanceCacheSettings cacheSettings)
+        public static void AddInstanceAuthentication(this IServiceCollection services, InstanceAuthSettings cacheSettings)
         {
             if (services == null)
                 throw new ArgumentNullException(nameof(services));
@@ -23,7 +23,7 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
                 options.DefaultChallengeScheme = InstanceAuthConstants.AUTH_SCHEME;
             }).AddScheme<InstanceAuthOptions, InstanceAuthHandler>(
                 InstanceAuthConstants.AUTH_SCHEME,
-                o => o.CacheSettings = cacheSettings);
+                o => o.AuthSettings = cacheSettings);
         }
     }
 }
