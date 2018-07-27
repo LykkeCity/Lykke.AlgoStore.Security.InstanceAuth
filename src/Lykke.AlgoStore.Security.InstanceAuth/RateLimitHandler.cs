@@ -28,7 +28,7 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
         {
             if (_settings.Count5xxTowardRateLimit) return;
 
-            if(context.HttpContext.Response.StatusCode >= 500 && context.HttpContext.Response.StatusCode <= 500)
+            if(context.HttpContext.Response.StatusCode >= 500 && context.HttpContext.Response.StatusCode < 600)
             {
                 var token = TokenUtils.GetToken(context.HttpContext);
                 var ip = context.HttpContext.Connection.RemoteIpAddress.ToString();
