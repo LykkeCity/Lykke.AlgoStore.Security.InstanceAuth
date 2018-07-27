@@ -11,7 +11,7 @@ namespace Lykke.AlgoStore.Security.InstanceAuth.Tests.Utils
 {
     internal static class MockUtils
     {
-        public static ActionExecutingContext Given_ActionContextMock(
+        public static ActionExecutingContext Given_ActionExecutingContextMock(
             HttpContext context)
         {
             return new ActionExecutingContext(
@@ -21,6 +21,18 @@ namespace Lykke.AlgoStore.Security.InstanceAuth.Tests.Utils
                     new Microsoft.AspNetCore.Mvc.Abstractions.ActionDescriptor()),
                 new List<IFilterMetadata>(),
                 new Dictionary<string, object>(),
+                null);
+        }
+
+        public static ActionExecutedContext Given_ActionExecutedContextMock(
+            HttpContext context)
+        {
+            return new ActionExecutedContext(
+                new Microsoft.AspNetCore.Mvc.ActionContext(
+                    context,
+                    new Microsoft.AspNetCore.Routing.RouteData(),
+                    new Microsoft.AspNetCore.Mvc.Abstractions.ActionDescriptor()),
+                new List<IFilterMetadata>(),
                 null);
         }
 
@@ -79,7 +91,8 @@ namespace Lykke.AlgoStore.Security.InstanceAuth.Tests.Utils
         }
 
         public static Mock<HttpResponse> Given_Verifiable_HttpResponseMock(
-            List<string> expectedHeaders = null)
+            List<string> expectedHeaders = null,
+            int? statusCode = null)
         {
             var mock = new Mock<HttpResponse>(MockBehavior.Strict);
 
@@ -95,6 +108,13 @@ namespace Lykke.AlgoStore.Security.InstanceAuth.Tests.Utils
 
                 mock.Setup(r => r.Headers)
                     .Returns(dictMock.Object)
+                    .Verifiable();
+            }
+
+            if(statusCode.HasValue)
+            {
+                mock.Setup(r => r.StatusCode)
+                    .Returns(statusCode.Value)
                     .Verifiable();
             }
 

@@ -1,6 +1,8 @@
 ﻿using Lykke.AlgoStore.Security.InstanceAuth.Tests.Utils;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Primitives;
+using Moq;
 using NUnit.Framework;
 using System.Collections.Generic;
 using System.Net;
@@ -23,23 +25,29 @@ namespace Lykke.AlgoStore.Security.InstanceAuth.Tests
             var request = MockUtils.Given_Verifiable_HttpRequestMock(headerDictionary.Object);
             var response = MockUtils.Given_Verifiable_HttpResponseMock(new List<string> { "Retry-After" });
             var context = MockUtils.Given_Verifiable_HttpContextMock(request.Object, response.Object, ip);
-            var actionContext = MockUtils.Given_ActionContextMock(context.Object);
+            var actionExecutingContext = MockUtils.Given_ActionExecutingContextMock(context.Object);
+            var actionExecutedContext = MockUtils.Given_ActionExecutedContextMock(context.Object);
+
 
             var middleware = new RateLimitHandler(new RateLimitSettings
             {
-                MaximumRequestsPerMinute = 1
+                MaximumRequestsPerTimeframe = 1,
+                TimeframeDurationInSeconds = 1,
+                Count5xxTowardRateLimit = true
             });
 
-            middleware.OnActionExecuting(actionContext);
-            middleware.OnActionExecuting(actionContext);
+            middleware.OnActionExecuting(actionExecutingContext);
+            middleware.OnActionExecuted(actionExecutedContext);
+            middleware.OnActionExecuting(actionExecutingContext);
+            middleware.OnActionExecuted(actionExecutedContext);
 
             context.Verify();
             request.Verify();
             response.Verify();
             headerDictionary.Verify();
 
-            Assert.IsTrue(actionContext.Result is StatusCodeResult);
-            Assert.AreEqual(429, ((StatusCodeResult)actionContext.Result).StatusCode);
+            Assert.IsTrue(actionExecutingContext.Result is StatusCodeResult);
+            Assert.AreEqual(429, ((StatusCodeResult)actionExecutingContext.Result).StatusCode);
         }
 
         [Test]
@@ -56,23 +64,65 @@ namespace Lykke.AlgoStore.Security.InstanceAuth.Tests
             var request = MockUtils.Given_Verifiable_HttpRequestMock(headerDictionary.Object);
             var response = MockUtils.Given_Verifiable_HttpResponseMock(new List<string> { "Retry-After" });
             var context = MockUtils.Given_Verifiable_HttpContextMock(request.Object, response.Object, ip, ip2);
-            var actionContext = MockUtils.Given_ActionContextMock(context.Object);
+            var actionExecutingContext = MockUtils.Given_ActionExecutingContextMock(context.Object);
+            var actionExecutedContext = MockUtils.Given_ActionExecutedContextMock(context.Object);
 
             var middleware = new RateLimitHandler(new RateLimitSettings
             {
-                MaximumRequestsPerMinute = 1
+                MaximumRequestsPerTimeframe = 1,
+                TimeframeDurationInSeconds = 1,
+                Count5xxTowardRateLimit = true
             });
 
-            middleware.OnActionExecuting(actionContext);
-            middleware.OnActionExecuting(actionContext);
+            middleware.OnActionExecuting(actionExecutingContext);
+            middleware.OnActionExecuted(actionExecutedContext);                
+            middleware.OnActionExecuting(actionExecutingContext);
+            middleware.OnActionExecuted(actionExecutedContext);
 
             context.Verify();
             request.Verify();
             response.Verify();
             headerDictionary.Verify();
 
-            Assert.IsTrue(actionContext.Result is StatusCodeResult);
-            Assert.AreEqual(429, ((StatusCodeResult)actionContext.Result).StatusCode);
+            Assert.IsTrue(actionExecutingContext.Result is StatusCodeResult);
+            Assert.AreEqual(429, ((StatusCodeResult)actionExecutingContext.Result).StatusCode);
+        }
+
+        [Test]
+        public void RateLimitMiddleware_DoesNotLimit_WhenServerReturns5xx()
+        {
+            var ip = new IPAddress(new byte[] { 0, 0, 0, 0 });
+            var headerDictionary = MockUtils.Given_Verifiable_HeaderDictionaryMock(
+                new Dictionary<string, StringValues>()
+                {
+                    ["Authorization"] = "Bearer token"
+                });
+
+            var request = MockUtils.Given_Verifiable_HttpRequestMock(headerDictionary.Object);
+            var response = MockUtils.Given_Verifiable_HttpResponseMock(statusCode: 500);
+            var context = MockUtils.Given_Verifiable_HttpContextMock(request.Object, response.Object, ip);
+            var actionExecutingContext = MockUtils.Given_ActionExecutingContextMock(context.Object);
+            var actionExecutedContext = MockUtils.Given_ActionExecutedContextMock(context.Object);
+
+            var middleware = new RateLimitHandler(new RateLimitSettings
+            {
+                MaximumRequestsPerTimeframe = 1,
+                TimeframeDurationInSeconds = 1,
+                Count5xxTowardRateLimit = false
+            });
+
+            middleware.OnActionExecuting(actionExecutingContext);
+            middleware.OnActionExecuted(actionExecutedContext);
+            middleware.OnActionExecuting(actionExecutingContext);
+            middleware.OnActionExecuted(actionExecutedContext);
+
+            context.Verify();
+            request.Verify();
+            response.Verify();
+            headerDictionary.Verify();
+
+            Assert.IsNull(actionExecutingContext.Result);
+
         }
     }
 }

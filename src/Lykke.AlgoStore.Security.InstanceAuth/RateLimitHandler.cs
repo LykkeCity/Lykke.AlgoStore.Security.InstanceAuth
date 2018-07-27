@@ -26,6 +26,17 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
 
         public void OnActionExecuted(ActionExecutedContext context)
         {
+            if (_settings.Count5xxTowardRateLimit) return;
+
+            if(context.HttpContext.Response.StatusCode >= 500 && context.HttpContext.Response.StatusCode < 600)
+            {
+                var token = TokenUtils.GetToken(context.HttpContext);
+                var ip = context.HttpContext.Connection.RemoteIpAddress.ToString();
+
+                HandleServerError($"{KEY_PREFIX}{ip}");
+                if (!string.IsNullOrEmpty(token))
+                    HandleServerError($"{KEY_PREFIX}{token}");
+            }
         }
 
         public void OnActionExecuting(ActionExecutingContext context)
@@ -47,6 +58,18 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
             }
         }
 
+        private void HandleServerError(string key)
+        {
+            if (!_memoryCache.Contains(key))
+                return;
+
+            var item = (CachedRateLimit)_memoryCache.Get(key);
+
+            item.Requests--;
+
+            _memoryCache.Set(key, item, item.Expiration);
+        }
+
         private bool CreateOrUpdateKey(string key)
         {
             if (!_memoryCache.Contains(key))
@@ -54,8 +77,8 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
                 _memoryCache.Add(key, new CachedRateLimit
                 {
                     Requests = 1,
-                    Expiration = DateTimeOffset.UtcNow.AddMinutes(1)
-                }, DateTimeOffset.UtcNow.AddMinutes(1));
+                    Expiration = DateTimeOffset.UtcNow.AddSeconds(_settings.TimeframeDurationInSeconds)
+                }, DateTimeOffset.UtcNow.AddSeconds(_settings.TimeframeDurationInSeconds));
                 return true;
             }
 
@@ -65,7 +88,7 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
 
             _memoryCache.Set(key, item, item.Expiration);
 
-            return item.Requests <= _settings.MaximumRequestsPerMinute;
+            return item.Requests <= _settings.MaximumRequestsPerTimeframe;
         }
 
         private int GetSecondsToExpiration(string key)

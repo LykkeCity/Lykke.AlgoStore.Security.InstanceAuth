@@ -6,8 +6,18 @@
     public class RateLimitSettings
     {
         /// <summary>
-        /// Maximum number of requests allowed every minute
+        /// Maximum number of requests allowed every timeframe
         /// </summary>
-        public int MaximumRequestsPerMinute { get; set; }
+        public int MaximumRequestsPerTimeframe { get; set; }
+
+        /// <summary>
+        /// The duration of each timeframe of requests
+        /// </summary>
+        public uint TimeframeDurationInSeconds { get; set; }
+
+        /// <summary>
+        /// Whether 5xx errors returned from the server should be counted towards the rate limit
+        /// </summary>
+        public bool Count5xxTowardRateLimit { get; set; }
     }
 }
