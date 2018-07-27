@@ -16,8 +16,8 @@
         public uint TimeframeDurationInSeconds { get; set; }
 
         /// <summary>
-        /// Whether 5xx errors returned from the server should be counted towards the rate limit
+        /// Set of status codes which won't be counted by the rate limiter
         /// </summary>
-        public bool Count5xxTowardRateLimit { get; set; }
+        public ushort[] StatusCodesToIgnore { get; set; }
     }
 }
