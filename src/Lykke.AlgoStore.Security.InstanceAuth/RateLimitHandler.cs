@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using System;
+using System.Linq;
 using System.Net;
 using System.Runtime.Caching;
 
@@ -26,9 +27,7 @@ namespace Lykke.AlgoStore.Security.InstanceAuth
 
         public void OnActionExecuted(ActionExecutedContext context)
         {
-            if (_settings.Count5xxTowardRateLimit) return;
-
-            if(context.HttpContext.Response.StatusCode >= 500 && context.HttpContext.Response.StatusCode < 600)
+            if(_settings.StatusCodesToIgnore.Any(sc => sc == context.HttpContext.Response.StatusCode))
             {
                 var token = TokenUtils.GetToken(context.HttpContext);
                 var ip = context.HttpContext.Connection.RemoteIpAddress.ToString();

@@ -33,7 +33,7 @@ namespace Lykke.AlgoStore.Security.InstanceAuth.Tests
             {
                 MaximumRequestsPerTimeframe = 1,
                 TimeframeDurationInSeconds = 1,
-                Count5xxTowardRateLimit = true
+                StatusCodesToIgnore = new ushort[0]
             });
 
             middleware.OnActionExecuting(actionExecutingContext);
@@ -71,7 +71,7 @@ namespace Lykke.AlgoStore.Security.InstanceAuth.Tests
             {
                 MaximumRequestsPerTimeframe = 1,
                 TimeframeDurationInSeconds = 1,
-                Count5xxTowardRateLimit = true
+                StatusCodesToIgnore = new ushort[0]
             });
 
             middleware.OnActionExecuting(actionExecutingContext);
@@ -108,7 +108,7 @@ namespace Lykke.AlgoStore.Security.InstanceAuth.Tests
             {
                 MaximumRequestsPerTimeframe = 1,
                 TimeframeDurationInSeconds = 1,
-                Count5xxTowardRateLimit = false
+                StatusCodesToIgnore = new ushort[] { 500 }
             });
 
             middleware.OnActionExecuting(actionExecutingContext);
